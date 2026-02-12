@@ -23,8 +23,8 @@ graph LR
         API --> Auth[Auth & Rate Limit]
         Auth --> Router[Triage / Router Logic]
         
-        Router -->|Complex Task| AdapterA[Claude Adapter (Vertex AI)]
-        Router -->|Creative/Fast| AdapterB[Gemini Adapter (Vertex AI)]
+        Router -->|Complex Task| AdapterA["Claude Adapter (Vertex AI)"]
+        Router -->|Creative/Fast| AdapterB["Gemini Adapter (Vertex AI)"]
         Router -->|Reasoning/Standard| AdapterC[OpenAI Adapter]
     end
     
