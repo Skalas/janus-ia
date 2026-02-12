@@ -1,0 +1,12 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    env_file: .env
+    volumes:
+      # ADC para Vertex AI (gcloud auth application-default login)
+      - ~/.config/gcloud:/home/janus/.config/gcloud:ro
+    # Desarrollo con hot-reload (opcional: descomenta y monta app)
+      - ./app:/app/app:ro
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]

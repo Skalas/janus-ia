@@ -65,6 +65,25 @@ janus-ia/
 └── README.md
 ```
 
+## Quick Start
+
+```bash
+# Local dev with uv
+cp .env.example .env   # add OPENAI_API_KEY, GCP_* as needed
+uv run uvicorn app.main:app --reload --port 8080
+
+# Or Docker
+docker compose up
+```
+
+Then call the OpenAI-compatible endpoint:
+
+```bash
+curl -X POST http://localhost:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gpt-4o","messages":[{"role":"user","content":"Hello"}],"stream":false}'
+```
+
 ## Dependencies
 
 *   Python >= 3.11
