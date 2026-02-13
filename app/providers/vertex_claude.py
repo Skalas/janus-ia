@@ -136,10 +136,12 @@ class VertexClaudeProvider(LLMProvider):
         text = "".join(text_parts)
         usage = None
         if getattr(resp, "usage", None):
+            inp = getattr(resp.usage, "input_tokens", 0) or 0
+            out = getattr(resp.usage, "output_tokens", 0) or 0
             usage = {
-                "prompt_tokens": getattr(resp.usage, "input_tokens", 0) or 0,
-                "completion_tokens": getattr(resp.usage, "output_tokens", 0) or 0,
-                "total_tokens": 0,
+                "prompt_tokens": inp,
+                "completion_tokens": out,
+                "total_tokens": inp + out,
             }
         return build_completion_response(
             id=resp.id or "janus",
