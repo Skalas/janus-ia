@@ -138,11 +138,14 @@ class VertexClaudeProvider(LLMProvider):
             }
 
     def _normalize_response(self, resp: Any, model: str) -> dict[str, Any]:
-        text = ""
+        """Solo incluir bloques de tipo 'text'; ignorar thinking y otros."""
+        text_parts = []
         if resp.content:
             for b in resp.content:
-                if hasattr(b, "text"):
-                    text += b.text
+                block_type = getattr(b, "type", None) or ""
+                if block_type == "text" and hasattr(b, "text") and b.text:
+                    text_parts.append(str(b.text))
+        text = "".join(text_parts)
         return {
             "id": resp.id or "janus",
             "object": "chat.completion",

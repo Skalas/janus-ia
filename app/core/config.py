@@ -28,7 +28,7 @@ class Settings(BaseSettings):
         "gpt-4o": "gpt-4o",
         "gpt-4o-mini": "gpt-4o-mini",
         "claude-sonnet": "claude-sonnet-4-5",
-        "claude-opus": "claude-opus-4-6",
+        "claude-opus": "claude-opus-4-5",
         "claude-haiku": "claude-haiku-4-5",
         "gemini-pro": "gemini-3-pro-preview",
         "gemini-flash": "gemini-3-flash-preview",
