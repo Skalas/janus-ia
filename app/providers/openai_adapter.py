@@ -7,6 +7,7 @@ from openai import AsyncOpenAI
 from app.core.config import settings
 from app.core.exceptions import ProviderError
 from app.providers.base import LLMProvider
+from app.providers.normalize import build_completion_response
 
 
 class OpenAIAdapter(LLMProvider):
@@ -96,22 +97,19 @@ class OpenAIAdapter(LLMProvider):
 
     def _normalize_response(self, resp: Any, model: str) -> dict[str, Any]:
         c = resp.choices[0] if resp.choices else None
-        return {
-            "id": resp.id or "janus",
-            "object": "chat.completion",
-            "model": model,
-            "choices": [
-                {
-                    "index": 0,
-                    "message": {"role": "assistant", "content": c.message.content if c else ""},
-                    "finish_reason": c.finish_reason if c else "stop",
-                }
-            ],
-            "usage": {
-                "prompt_tokens": resp.usage.prompt_tokens if resp.usage else 0,
-                "completion_tokens": resp.usage.completion_tokens if resp.usage else 0,
-                "total_tokens": resp.usage.total_tokens if resp.usage else 0,
+        content = c.message.content if c and c.message else ""
+        finish_reason = c.finish_reason if c else "stop"
+        usage = None
+        if resp.usage:
+            usage = {
+                "prompt_tokens": resp.usage.prompt_tokens,
+                "completion_tokens": resp.usage.completion_tokens,
+                "total_tokens": resp.usage.total_tokens,
             }
-            if resp.usage
-            else None,
-        }
+        return build_completion_response(
+            id=resp.id or "janus",
+            model=model,
+            message_content=content,
+            finish_reason=finish_reason,
+            usage=usage,
+        )

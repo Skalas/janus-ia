@@ -1,8 +1,10 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     """Configuration for Janus IA orchestration layer."""
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     PROJECT_NAME: str = "Janus IA"
     VERSION: str = "0.1.0"
@@ -38,10 +40,6 @@ class Settings(BaseSettings):
     VERTEX_CLAUDE_MODEL: str = "claude-sonnet-4-5"
     VERTEX_GEMINI_MODEL: str = "gemini-3-pro-preview"
     OPENAI_DEFAULT_MODEL: str = "gpt-4o"
-
-    class Config:
-        env_file = ".env"
-        extra = "ignore"
 
 
 settings = Settings()

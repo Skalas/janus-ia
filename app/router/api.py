@@ -1,36 +1,39 @@
 """Chat completions API - routes to providers and returns normalized responses."""
 
-from typing import Any
+import asyncio
+import json
+from typing import Any, Callable
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
-import json
 
 from app.core.config import settings
 from app.core.exceptions import ProviderError
 from app.core.security import validate_api_key
 from app.models.schemas import ChatCompletionRequest, MultiChatCompletionRequest
+from app.providers.base import LLMProvider
 from app.providers.openai_adapter import OpenAIAdapter
 from app.providers.vertex_claude import VertexClaudeProvider
 from app.providers.vertex_gemini import VertexGeminiProvider
-import asyncio
 from app.router.intelligence import ProviderKind, resolve_provider_and_model
 
 router = APIRouter()
 
-# Lazy provider instances (created on first use)
-_providers: dict[ProviderKind, Any] = {}
+# Registry: each ProviderKind -> constructor (no instance yet)
+_PROVIDER_FACTORY: dict[ProviderKind, Callable[[], LLMProvider]] = {
+    ProviderKind.OPENAI: OpenAIAdapter,
+    ProviderKind.VERTEX_CLAUDE: VertexClaudeProvider,
+    ProviderKind.VERTEX_GEMINI: VertexGeminiProvider,
+}
+_providers: dict[ProviderKind, LLMProvider] = {}
 
 
-def _get_provider(kind: ProviderKind):
-    """Get or create provider instance."""
+def _get_provider(kind: ProviderKind) -> LLMProvider:
+    """Get or create provider instance. Raises ProviderError if kind unknown or init fails."""
     if kind not in _providers:
-        if kind == ProviderKind.OPENAI:
-            _providers[kind] = OpenAIAdapter()
-        elif kind == ProviderKind.VERTEX_CLAUDE:
-            _providers[kind] = VertexClaudeProvider()
-        elif kind == ProviderKind.VERTEX_GEMINI:
-            _providers[kind] = VertexGeminiProvider()
+        if kind not in _PROVIDER_FACTORY:
+            raise ProviderError(f"Unknown provider: {kind}")
+        _providers[kind] = _PROVIDER_FACTORY[kind]()
     return _providers[kind]
 
 

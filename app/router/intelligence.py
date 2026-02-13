@@ -1,9 +1,10 @@
 """Router / Triage logic - decides which provider handles each request."""
 
-from enum import Enum
 import re
+from enum import Enum
 
 from app.core.config import settings
+from app.core.messages import message_content_to_text
 
 
 class ProviderKind(str, Enum):
@@ -77,17 +78,7 @@ def _last_user_content(messages: list[dict]) -> str:
     """Get concatenated text from last user message(s)."""
     if not messages:
         return ""
-    # Walk backwards to find last user message
     for m in reversed(messages):
         if str(m.get("role", "")).lower() == "user":
-            content = m.get("content", "")
-            if isinstance(content, str):
-                return content
-            if isinstance(content, list):
-                parts = [
-                    p.get("text", "") for p in content
-                    if isinstance(p, dict) and p.get("type") == "text"
-                ]
-                return " ".join(parts)
-            return ""
+            return message_content_to_text(m.get("content", ""))
     return ""

@@ -5,7 +5,9 @@ from typing import Any, AsyncGenerator
 
 from app.core.config import settings
 from app.core.exceptions import ProviderError
+from app.core.messages import message_content_to_text
 from app.providers.base import LLMProvider
+from app.providers.normalize import build_completion_response, build_stream_chunk
 
 
 class VertexClaudeProvider(LLMProvider):
@@ -33,15 +35,7 @@ class VertexClaudeProvider(LLMProvider):
         anthropic_msgs: list[dict[str, str]] = []
         for m in messages:
             role = str(m.get("role", "user"))
-            content = m.get("content", "")
-            if isinstance(content, list):
-                # Flatten to text for MVP
-                parts = []
-                for p in content:
-                    if isinstance(p, dict) and p.get("type") == "text":
-                        parts.append(p.get("text", ""))
-                content = " ".join(parts) if parts else ""
-            content = str(content)
+            content = message_content_to_text(m.get("content", ""))
             if role == "system":
                 system = content
             else:
@@ -129,13 +123,7 @@ class VertexClaudeProvider(LLMProvider):
             chunk = await queue.get()
             if chunk is None:
                 break
-            yield {
-                "id": "janus",
-                "object": "chat.completion.chunk",
-                "choices": [
-                    {"index": 0, "delta": {"content": chunk}, "finish_reason": None}
-                ],
-            }
+            yield build_stream_chunk(chunk)
 
     def _normalize_response(self, resp: Any, model: str) -> dict[str, Any]:
         """Solo incluir bloques de tipo 'text'; ignorar thinking y otros."""
@@ -146,24 +134,16 @@ class VertexClaudeProvider(LLMProvider):
                 if block_type == "text" and hasattr(b, "text") and b.text:
                     text_parts.append(str(b.text))
         text = "".join(text_parts)
-        return {
-            "id": resp.id or "janus",
-            "object": "chat.completion",
-            "model": model,
-            "choices": [
-                {
-                    "index": 0,
-                    "message": {"role": "assistant", "content": text},
-                    "finish_reason": "stop",
-                }
-            ],
-            "usage": {
-                "prompt_tokens": getattr(resp, "usage", None)
-                and getattr(resp.usage, "input_tokens", 0)
-                or 0,
-                "completion_tokens": getattr(resp, "usage", None)
-                and getattr(resp.usage, "output_tokens", 0)
-                or 0,
+        usage = None
+        if getattr(resp, "usage", None):
+            usage = {
+                "prompt_tokens": getattr(resp.usage, "input_tokens", 0) or 0,
+                "completion_tokens": getattr(resp.usage, "output_tokens", 0) or 0,
                 "total_tokens": 0,
-            },
-        }
+            }
+        return build_completion_response(
+            id=resp.id or "janus",
+            model=model,
+            message_content=text,
+            usage=usage,
+        )

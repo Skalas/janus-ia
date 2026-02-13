@@ -6,7 +6,9 @@ from typing import Any, AsyncGenerator
 
 from app.core.config import settings
 from app.core.exceptions import ProviderError
+from app.core.messages import message_content_to_text
 from app.providers.base import LLMProvider
+from app.providers.normalize import build_completion_response, build_stream_chunk
 
 
 class VertexGeminiProvider(LLMProvider):
@@ -34,14 +36,7 @@ class VertexGeminiProvider(LLMProvider):
         contents: list[dict[str, Any]] = []
         for m in messages:
             role = str(m.get("role", "user"))
-            content = m.get("content", "")
-            if isinstance(content, list):
-                parts = []
-                for p in content:
-                    if isinstance(p, dict) and p.get("type") == "text":
-                        parts.append({"text": p.get("text", "")})
-                content = " ".join(p.get("text", "") for p in parts) if parts else ""
-            text = str(content)
+            text = message_content_to_text(m.get("content", ""))
             if role == "system":
                 system = text
             else:
@@ -126,13 +121,7 @@ class VertexGeminiProvider(LLMProvider):
             chunk = await queue.get()
             if chunk is None:
                 break
-            yield {
-                "id": "janus",
-                "object": "chat.completion.chunk",
-                "choices": [
-                    {"index": 0, "delta": {"content": chunk}, "finish_reason": None}
-                ],
-            }
+            yield build_stream_chunk(chunk)
 
     def _part_text(self, p: Any) -> list[str]:
         """Extrae todo texto de un part (.text; thought es bool en v1, no objeto con .text)."""
@@ -203,7 +192,7 @@ class VertexGeminiProvider(LLMProvider):
 
     def _normalize_response(self, resp: Any, model: str) -> dict[str, Any]:
         text = self._extract_text(resp)
-        usage = {}
+        usage = None
         if hasattr(resp, "usage_metadata") and resp.usage_metadata:
             um = resp.usage_metadata
             usage = {
@@ -211,16 +200,8 @@ class VertexGeminiProvider(LLMProvider):
                 "completion_tokens": getattr(um, "candidates_token_count", 0) or 0,
                 "total_tokens": getattr(um, "total_token_count", 0) or 0,
             }
-        return {
-            "id": "janus",
-            "object": "chat.completion",
-            "model": model,
-            "choices": [
-                {
-                    "index": 0,
-                    "message": {"role": "assistant", "content": text},
-                    "finish_reason": "stop",
-                }
-            ],
-            "usage": usage or None,
-        }
+        return build_completion_response(
+            model=model,
+            message_content=text,
+            usage=usage,
+        )
